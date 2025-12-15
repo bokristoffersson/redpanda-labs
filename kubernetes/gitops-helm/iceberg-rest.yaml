@@ -30,13 +30,13 @@ spec:
         - |
           echo "Resolving MinIO service IP..."
 
-          # Get MinIO service IP (try ClusterIP first, then Pod IP)
-          MINIO_IP=$(nslookup iceberg-minio-hl.iceberg-lab.svc.cluster.local | grep 'Address:' | tail -1 | awk '{print $2}')
+          # Get MinIO Pod IP from headless service
+          MINIO_IP=$(nslookup iceberg-minio-hl.iceberg-lab.svc.cluster.local 2>/dev/null | grep -E '^Address: [0-9]+\.' | head -1 | awk '{print $2}')
 
-          if [ -z "$MINIO_IP" ]; then
-            echo "ClusterIP not found, trying Pod IP..."
-            # For headless services, get Pod IP directly
-            MINIO_IP=$(nslookup iceberg-minio-hl.iceberg-lab.svc.cluster.local | grep -A 1 'Name:' | grep 'Address:' | head -1 | awk '{print $2}')
+          if [ -z "$MINIO_IP" ] || echo "$MINIO_IP" | grep -q ':53$'; then
+            echo "Failed to resolve, trying alternative method..."
+            # Alternative: get pod IP directly
+            MINIO_IP=$(getent hosts iceberg-minio-hl.iceberg-lab.svc.cluster.local 2>/dev/null | head -1 | awk '{print $1}')
           fi
 
           if [ -z "$MINIO_IP" ]; then
